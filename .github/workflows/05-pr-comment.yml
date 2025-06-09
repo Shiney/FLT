@@ -5,30 +5,24 @@ on:
     types: [created]
 
 jobs:
-  awaiting_author:
-    if: github.event.issue.pull_request != null && contains(github.event.comment.body, 'awaiting-author')
-    runs-on: ubuntu-latest
-    steps:
-    - name: Add 'awaiting-author; and remove any 'awaiting-review'
-      uses: actions/github-script@v6
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        script: |
-          const { owner, repo, number: issue_number } = context.issue;
-          await github.rest.issues.addLabels({ owner, repo, issue_number, labels: ['awaiting-author'] });
-          await github.rest.issues.removeLabel({ owner, repo, issue_number, name: 'awaiting-review' }).catch(() => {});
 
   awaiting_review_or_author:
-    if: github.event.issue.pull_request != null && contains(github.event.comment.body, 'awaiting-review')
+    if: github.event.issue.pull_request != null && (contains(github.event.comment.body, 'awaiting-review') || contains(github.event.comment.body, 'awaiting-author'))
     runs-on: ubuntu-latest
 
     steps:
     - name: setup variables awaiting Review
       if: contains(github.event.comment.body, 'awaiting-review')
       run: |
+        echo "labelToAdd=awaiting-author" >> "$GITHUB_ENV"
+        echo "labelToRemove=awaiting-review" >> "$GITHUB_ENV"
+        echo "columnToMoveTo=In Progress" >> "$GITHUB_ENV"
+    - name: setup variables awaiting author
+      if: contains(github.event.comment.body, 'awaiting-review')
+      run: |
         echo "labelToAdd=awaiting-review" >> "$GITHUB_ENV"
         echo "labelToRemove=awaiting-author" >> "$GITHUB_ENV"
-        echo "columnToMoveTo=In Progress" >> "$GITHUB_ENV"
+        echo "columnToMoveTo=In Review" >> "$GITHUB_ENV"
     - name: Add 'awaiting-review; and remove any 'awaiting-author'
       uses: actions/github-script@v6
       with:
@@ -144,7 +138,7 @@ jobs:
         PR_IN_REVIEW_ID=$(echo "$RESPONSE" | jq -r '.data.node.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == "${{ env.columnToMoveTo }}").id')
 
         if [ -z "$PR_IN_REVIEW_ID" ]; then
-          echo "Error: Could not retrieve '$columnToMoveTo' ID"
+          echo "Error: Could not retrieve '${{ env.columnToMoveTo }}' ID"
           exit 1
         else
           echo "PR_IN_REVIEW_ID=$PR_IN_REVIEW_ID" >> $GITHUB_ENV
@@ -164,4 +158,4 @@ jobs:
         https://api.github.com/graphql
 
     - name: Log the project card movement result
-      run: echo "Task successfully moved to '$columnToMoveTo' column."
+      run: echo "Task successfully moved to '${{ env.columnToMoveTo }}' column."
