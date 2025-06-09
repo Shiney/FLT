@@ -11,8 +11,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: setup variables awaiting Review
-      if: contains(github.event.comment.body, 'awaiting-review')
+    - name: setup variables awaiting author
+      if: contains(github.event.comment.body, 'awaiting-author')
       run: |
         echo "labelToAdd=awaiting-author" >> "$GITHUB_ENV"
         echo "labelToRemove=awaiting-review" >> "$GITHUB_ENV"
