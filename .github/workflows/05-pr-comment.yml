@@ -141,7 +141,7 @@ jobs:
           --data "$QUERY" https://api.github.com/graphql)
 
         echo "GraphQL Response: $RESPONSE"
-        PR_IN_REVIEW_ID=$(echo "$RESPONSE" | jq -r '.data.node.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == "$columnToMoveTo").id')
+        PR_IN_REVIEW_ID=$(echo "$RESPONSE" | jq -r '.data.node.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == "${{ env.columnToMoveTo }}").id')
 
         if [ -z "$PR_IN_REVIEW_ID" ]; then
           echo "Error: Could not retrieve '$columnToMoveTo' ID"
