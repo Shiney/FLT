@@ -27,6 +27,8 @@ jobs:
       if: contains(github.event.comment.body, 'awaiting-review')
       run: |
         echo "labelToAdd=awaiting-review" >> "$GITHUB_ENV"
+        echo "labelToRemove=awaiting-author" >> "$GITHUB_ENV"
+        echo "columnToMoveTo=In Progress" >> "$GITHUB_ENV"
     - name: Add 'awaiting-review; and remove any 'awaiting-author'
       uses: actions/github-script@v6
       with:
@@ -34,8 +36,9 @@ jobs:
         script: |
           const { owner, repo, number: issue_number } = context.issue;
           const labelToAdd = process.env.labelToAdd;
+          const labelToRemove = process.env.labelToRemove;
           await github.rest.issues.addLabels({ owner, repo, issue_number, labels: [labelToAdd] });
-          await github.rest.issues.removeLabel({ owner, repo, issue_number, name: 'awaiting-author' }).catch(() => {});
+          await github.rest.issues.removeLabel({ owner, repo, issue_number, name: labelToRemove }).catch(() => {});
 
     - name: Retrieve project ID
       id: get_project_id
@@ -124,7 +127,7 @@ jobs:
           echo "FIELD_ID=$FIELD_ID" >> $GITHUB_ENV
         fi
 
-    - name: Retrieve the "In Review" option ID
+    - name: Retrieve the relevant column option ID
       id: find_in_review_tasks_id
       run: |
         QUERY=$(cat <<EOF
@@ -138,16 +141,16 @@ jobs:
           --data "$QUERY" https://api.github.com/graphql)
 
         echo "GraphQL Response: $RESPONSE"
-        PR_IN_REVIEW_ID=$(echo "$RESPONSE" | jq -r '.data.node.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == "In Review").id')
+        PR_IN_REVIEW_ID=$(echo "$RESPONSE" | jq -r '.data.node.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == "$columnToMoveTo").id')
 
         if [ -z "$PR_IN_REVIEW_ID" ]; then
-          echo "Error: Could not retrieve 'In Review' ID"
+          echo "Error: Could not retrieve '$columnToMoveTo' ID"
           exit 1
         else
           echo "PR_IN_REVIEW_ID=$PR_IN_REVIEW_ID" >> $GITHUB_ENV
         fi
 
-    - name: Move task to "In Review" column
+    - name: Move task to Correct column
       run: |
         QUERY=$(cat <<EOF
         {
@@ -161,4 +164,4 @@ jobs:
         https://api.github.com/graphql
 
     - name: Log the project card movement result
-      run: echo "Task successfully moved to 'In Review' column."
+      run: echo "Task successfully moved to '$columnToMoveTo' column."
